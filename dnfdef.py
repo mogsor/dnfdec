@@ -54,46 +54,108 @@ config.read("packages.ini")
 
 
 # step 1. mark all packages as user installed
-subprocess.run(
-    dnf + ["mark", "user", "*"],
-    # stdout=subprocess.DEVNULL,
-    check=True
-)
+
+print("Marking packages as user installed...")
+
+try:
+    out = subprocess.run(
+        dnf + ["mark", "user", "*"],
+        capture_output=True,
+        check=True
+    )
+except subprocess.CalledProcessError:
+    print(out.stderr.decode())
+    quit()
+
 
 # step 2. remove all groups (now safe to do without removing packages)
-subprocess.run(
-    dnf + ["group", "remove", "*"],
-    # stdout=subprocess.DEVNULL,
-    check=True
-)
+
+print("Removing groups...")
+
+try:
+    subprocess.run(
+        dnf + ["group", "remove", "*"],
+        capture_output=True,
+        check=True
+    )
+except subprocess.CalledProcessError:
+    print(out.stderr.decode())
+    quit()
+
 
 # step 3. install desired groups, minus unwanted packages
-subprocess.run(
-    dnf + ["group", "install"] + list(config["groups"])
-    + ["--exclude=" + ",".join(list(config["packages.exclude"]))],
-    # stdout=subprocess.DEVNULL,
-    check=True
-)
+
+try:
+    out = subprocess.run(
+        dnf + ["group", "install"] + list(config["groups"])
+        + ["--exclude=" + ",".join(list(config["packages.exclude"]))],
+        # capture_output=True,
+        stderr=subprocess.DEVNULL,
+        check=True
+    )
+except subprocess.CalledProcessError:
+    print(out.stderr.decode())
+    quit()
+
 
 # step 4. install explicitly desired packages
-subprocess.run(
-    dnf + ["install"] + list(config["packages.install"]),
-    # + ["--exclude=" + ",".join(list(config["packages.exclude"]))],
-    # stdout=subprocess.DEVNULL,
-    check=True
-)
 
-# step 5. set all packages to dependency except explicitly desired ones
-subprocess.run(
-    dnf + ["mark", "dependency", "*"]
-    + ["--exclude=" + ",".join(list(config["packages.install"]))],
-    # stdout=subprocess.DEVNULL,
-    check=True
-)
+try:
+    out = subprocess.run(
+        dnf + ["install"] + list(config["packages.install"]),
+        # + ["--exclude=" + ",".join(list(config["packages.exclude"]))],
+        # capture_output=True,
+        stderr=subprocess.DEVNULL,
+        check=True
+    )
+except subprocess.CalledProcessError:
+    print(out.stderr.decode())
+    quit()
 
-# step 6. dnf autoremove
-subprocess.run(
-    dnf + ["autoremove"],
-    # stdout=subprocess.DEVNULL,
-    check=True
-)
+# step 5. explicitly remove excluded packages
+
+print("Removing excluded packages...")
+
+try:
+    out = subprocess.run(
+        dnf + ["remove"] + list(config["packages.exclude"])
+        + ["--exclude=" + ",".join(list(config["packages.install"]))],
+        stderr=subprocess.DEVNULL,
+        check=True
+    )
+except subprocess.CalledProcessError:
+    print(out.stderr.decode())
+    quit()
+
+# step 6. set all packages to dependency except explicitly desired ones
+
+print("Marking packages as dependencies...")
+
+try:
+    out = subprocess.run(
+        dnf + ["mark", "dependency", "*"]
+        + ["--exclude=" + ",".join(list(config["packages.install"]))],
+        capture_output=True,
+        # stderr=subprocess.DEVNULL,
+        check=True
+    )
+except subprocess.CalledProcessError:
+    print(out.stderr.decode())
+    quit()
+
+# step 7. dnf autoremove
+
+print("Running dnf autoremove...")
+
+try:
+    out = subprocess.run(
+        dnf + ["autoremove"],
+        # capture_output=True,
+        stderr=subprocess.DEVNULL,
+        check=True
+    )
+except subprocess.CalledProcessError:
+    print(out.stderr.decode())
+    quit()
+
+print("Complete.")
